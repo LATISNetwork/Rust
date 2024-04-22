@@ -1,0 +1,41 @@
+- name: Setup Cosmos SDK Node and Deploy Contract
+  hosts: localhost
+  become: yes
+  connection: local
+  vars:
+    home: "/home/matthewc458"
+    contract: "/home/matthewc458/muh-contract/target/wasm32-unknown-unknown/release"
+  tasks:
+    - name: Check for Genesis file
+      stat:
+        path: "/root/.gaia/config/genesis.json"
+      register: genesis
+
+    - name: Initialize blockchain
+      shell: /home/matthewc458/go/bin/gaiad init mynode --chain-id mychain
+      args:
+        chdir: "{{ home }}/gaia"
+      when: not genesis.stat.exists
+
+    - name: Start blockchain node
+      shell: gaiad start
+      args:
+        chdir: "{{ home }}/gaia"
+      async: 3600
+      poll: 0
+
+    - name: Wait 1 min for setting up node
+      pause:
+        minutes: 1
+
+    - name: Deploy CosmWasm contract
+      shell: |
+        wasmd tx wasm store "{{ contract }}"/muh_contract.wasm --from muhwallet --chain-id mychain --gas auto --gas-adjustment 1.3 --gas-prices 0.01uatom --yes
+      register: deployment_output
+      args:
+        chdir: "{{ contract }}"
+      ignore_errors: yes
+
+    - name: Check deployment output
+      debug:
+        var: deployment_output.stdout
