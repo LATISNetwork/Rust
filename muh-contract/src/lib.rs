@@ -102,3 +102,88 @@ pub enum QueryMsg {
     // More query message variants
 }
 
+
+#[cfg(test)]
+mod tests{
+
+
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{attr, from_binary};
+
+    #[test]
+    fn proper_initialization() {
+        let mut deps = mock_dependencies();
+
+        let msg = InstantiateMsg {};
+        let info = mock_info("creator", &[]);
+
+        // Call the instantiate function
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // Verify the expected result
+        assert_eq!(0, res.messages.len());
+        assert_eq!(res.attributes[0], attr("method", "instantiate"));
+        assert_eq!(res.attributes[1], attr("admin", "creator"));
+    }
+
+    #[test]
+    fn add_authorized_update() {
+
+        let mut deps = mock_dependencies();
+	let admin_info = mock_info(ADMIN, &[]);
+        let instantiate_msg = InstantiateMsg {};
+        let _ = instantiate(deps.as_mut(), mock_env(), admin_info.clone(), instantiate_msg).unwrap();
+	
+	// Update should work for modelA rather than modelB
+        let update = Update {
+            key: "muhKey".to_string(),
+            checksum: "muhChecksum".to_string(),
+            cid: "muhCid".to_string(),
+            update_version: "v1.0".to_string(),
+            update_success: vec!["modelA".to_string()],
+            update_fail: vec!["modelB".to_string()],
+        };		
+
+	let execute_msg = ExecuteMsg::AddUpdate {
+            model: MODEL_A.to_string(),
+            update: update.clone(),
+        };
+	
+	let res = execute(deps.as_mut(), mock_env(), admin_info, execute_msg).unwrap();
+	assert_eq!(res.attributes[0], attr("action", "add_update"));
+	
+        let query_msg = QueryMsg::GetUpdate {
+            model: MODEL_A.to_string(),
+        };
+        let bin = query(deps.as_ref(), mock_env(), query_msg).unwrap();
+        let stored_update: Update = from_binary(&bin).unwrap();
+        assert_eq!(stored_update, update);
+    }
+
+    #[test]
+    fn unauthorized_access() {
+        let mut deps = mock_dependencies();
+        let info = mock_info("joe_shmoe", &[]);
+        
+        let update = Update {
+            key: "key123".to_string(),
+            checksum: "checksumabc".to_string(),
+            cid: "cidXYZ".to_string(),
+            update_version: "v1.0".to_string(),
+            update_success: vec![],
+            update_fail: vec![],
+        };
+        
+        let execute_msg = ExecuteMsg::AddUpdate {
+            model: MODEL_A.to_string(),
+            update: update.clone(),
+        };
+
+        // Try to execute with non-admin user
+        let res = execute(deps.as_mut(), mock_env(), info, execute_msg);
+
+        // Expect an error due to unauthorized access
+        assert!(res.is_err());
+    }
+}
