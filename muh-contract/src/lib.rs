@@ -1,14 +1,14 @@
 #![crate_name = "muh_contract"]
 
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, StdError
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 
 use cw2::set_contract_version;
 use cw_storage_plus::Map;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use schemars::JsonSchema; 
 
 const CONTRACT_NAME: &str = "crates.io:secure-update";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -19,8 +19,6 @@ pub struct Update {
     checksum: String,
     cid: String,
     update_version: String,
-    update_success: Vec<String>,
-    update_fail: Vec<String>,
 }
 
 pub static ADMIN: &str = "ADMIN";
@@ -47,19 +45,19 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::AddUpdate { model, update } => add_update(deps, info, model, update),
         // More handlers here
     }
 }
 
-fn add_update(deps: DepsMut, info: MessageInfo, model: String, update: Update) -> StdResult<Response> {
+fn add_update(
+    deps: DepsMut,
+    info: MessageInfo,
+    model: String,
+    update: Update,
+) -> StdResult<Response> {
     // Check if sender is admin
     if info.sender != ADMIN {
         return Err(StdError::generic_err("Unauthorized Access"));
@@ -87,25 +85,18 @@ pub struct InstantiateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum ExecuteMsg {
-    AddUpdate {
-        model: String,
-        update: Update,
-    },
+    AddUpdate { model: String, update: Update },
     // More execute message variants
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum QueryMsg {
-    GetUpdate {
-        model: String,
-    },
+    GetUpdate { model: String },
     // More query message variants
 }
 
-
 #[cfg(test)]
-mod tests{
-
+mod tests {
 
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -129,30 +120,33 @@ mod tests{
 
     #[test]
     fn add_authorized_update() {
-
         let mut deps = mock_dependencies();
-	let admin_info = mock_info(ADMIN, &[]);
+        let admin_info = mock_info(ADMIN, &[]);
         let instantiate_msg = InstantiateMsg {};
-        let _ = instantiate(deps.as_mut(), mock_env(), admin_info.clone(), instantiate_msg).unwrap();
-	
-	// Update should work for modelA rather than modelB
+        let _ = instantiate(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            instantiate_msg,
+        )
+        .unwrap();
+
+        // Update should work for modelA rather than modelB
         let update = Update {
             key: "muhKey".to_string(),
             checksum: "muhChecksum".to_string(),
             cid: "muhCid".to_string(),
             update_version: "v1.0".to_string(),
-            update_success: vec!["modelA".to_string()],
-            update_fail: vec!["modelB".to_string()],
-        };		
+        };
 
-	let execute_msg = ExecuteMsg::AddUpdate {
+        let execute_msg = ExecuteMsg::AddUpdate {
             model: MODEL_A.to_string(),
             update: update.clone(),
         };
-	
-	let res = execute(deps.as_mut(), mock_env(), admin_info, execute_msg).unwrap();
-	assert_eq!(res.attributes[0], attr("action", "add_update"));
-	
+
+        let res = execute(deps.as_mut(), mock_env(), admin_info, execute_msg).unwrap();
+        assert_eq!(res.attributes[0], attr("action", "add_update"));
+
         let query_msg = QueryMsg::GetUpdate {
             model: MODEL_A.to_string(),
         };
@@ -165,16 +159,14 @@ mod tests{
     fn unauthorized_access() {
         let mut deps = mock_dependencies();
         let info = mock_info("joe_shmoe", &[]);
-        
+
         let update = Update {
             key: "key123".to_string(),
             checksum: "checksumabc".to_string(),
             cid: "cidXYZ".to_string(),
             update_version: "v1.0".to_string(),
-            update_success: vec![],
-            update_fail: vec![],
         };
-        
+
         let execute_msg = ExecuteMsg::AddUpdate {
             model: MODEL_A.to_string(),
             update: update.clone(),
