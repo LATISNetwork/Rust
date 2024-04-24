@@ -73,3 +73,5 @@ QUERY='{"GetUpdate":{"model":"MODEL_A"}}'
 
 osmosisd query wasm contract-state smart $CONTRACT_ADDR "$QUERY" --output json
 ```
+
+Can take a look at https://osmosis-contracts.web.app/#/codes/{CODE ID} for some gui visualizations of stuff
