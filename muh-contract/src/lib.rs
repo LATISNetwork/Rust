@@ -1,13 +1,13 @@
 #![crate_name = "muh_contract"]
 
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, Response, StdResult, StdError
+    entry_point, to_binary,MessageInfo, Binary, Deps, DepsMut, Env, Response, StdResult, StdError
 };
 
 use cw2::set_contract_version;
 use cw_storage_plus::Map;
 
-use serde::{Deserialize, Serialize};
+	use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 
 const CONTRACT_NAME: &str = "crates.io:secure-update";
@@ -30,12 +30,13 @@ pub const UPDATES: Map<&str, Update> = Map::new("updates");
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
+    info: MessageInfo,
     _: InstantiateMsg,
 ) -> StdResult<Response> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    // Define roles and the admin on instantiation
-    // Help: Normally we would set up role management here. This can be adapted based on further details
+
+
     Ok(Response::new()
         .add_attribute("method", "instantiate")
         )
@@ -44,42 +45,26 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
+    info: MessageInfo,
     msg: ExecuteMsg,
-    _key: String,
-    _checksum: String,
-    _cid: String,
-    _update_version: String,
-    _iv: String,
-    _tag: String,
-    _encryption: String
-
 ) -> StdResult<Response> {
-
     match msg {
-        
-        // Fix message invalid `struct` delimiters or `fn` call arguments
-
-        ExecuteMsg::AddUpdate { model, key,
+        ExecuteMsg::AddUpdate {
+            model,
+            key,
             checksum,
             cid,
             update_version,
             iv,
             tag,
-            encryption } 
-            
-            => add_update(deps, model, key,
-            checksum,
-            cid,
-            update_version,
-            iv,
-            tag,
-            encryption)
+            encryption,
+        } => add_update(deps, info, model, key, checksum, cid, update_version, iv, tag, encryption),
 
     }
 }
 
-fn add_update(deps: DepsMut, model: String, key: String,
+fn add_update(deps: DepsMut, info: MessageInfo, model: String, key: String,
     checksum: String,
     cid: String,
     update_version: String,
@@ -108,7 +93,7 @@ fn add_update(deps: DepsMut, model: String, key: String,
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetUpdate { model } => to_binary(&query_update(deps, model)?),
     }
